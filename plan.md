@@ -18,55 +18,45 @@ Poboljšavamo protokol tako da podržava slanje podataka u segmentima. Svaki fre
 
 * **Struktura Frejma:**
     * **Markeri (4 bita):** 4 ugla matrice su uvek upaljena za detekciju i korekciju perspektive.
-    * **Heder (Header) - Prvi red (16 bita):** Prvi red matrice rezervišemo za ključne meta-podatke.
-        * **ID Sesije (8 bita):** Nasumičan broj koji je isti za sve frejmove jedne poruke. Ovo sprečava mešanje podataka ako dve poruke krenu jedna za drugom.
+    * **Heder (Header) - Prvi red (16 bita):** Prvi red matrice rezervišemo za ključne meta-podatke. 
+        * **Marker (2 bita)**
+        * **ID Sesije (6 bita):** Nasumičan broj koji je isti za sve frejmove jedne poruke. Ovo sprečava mešanje podataka ako dve poruke krenu jedna za drugom.
         * **Brojač Sekvence (4 bita):** Koji je ovo frejm po redu (0, 1, 2...). Omogućava do 16 frejmova po poruci.
         * **Ukupan Broj Frejmova (4 bita):** Koliko ukupno frejmova ima u poruci. Kamera odmah zna kada da očekuje kraj.
-    * **Payload (Podaci):** Ostatak matrice, isključujući hedere i futere, koristi se za delove podataka.
+    * **Payload-Data (Podaci):** Ostatak matrice, isključujući hedere i futere, koristi se za delove podataka.
     * **Futur (Footer) - Poslednji red (16 bita):**
-        * **CRC (Cyclic Redundancy Check) (16 bita):** Umesto običnog checksuma, koristimo CRC-16. Ovo je **značajno poboljšanje** jer je daleko otporniji na greške u prenosu, uključujući i višestruke uzastopne greške (burst errors).
+        * **CRC (Cyclic Redundancy Check) (14 bita):** Umesto običnog checksuma, koristimo CRC-16. Ovo je **značajno poboljšanje** jer je daleko otporniji na greške u prenosu, uključujući i višestruke uzastopne greške (burst errors).
+        * **Marker (2 bita)**
 
 * **Kapacitet i Broj Frejmova:**
     * Ukupno dioda: 256.
-    * Rezervisano: 4 (markeri) + 16 (heder) + 16 (futur/CRC) = 36 bita.
-    * Dostupno za podatke (payload): 256 - 36 = **220 bita po frejmu**.
-    * Potrebno frejmova: 600 bita / 220 bita/frejm = 2.72. Dakle, potrebna su **3 frejma** da se prenese cela poruka.
+    * Rezervisano: 4 (markeri) + 14 (heder) + 14 (futur/CRC) = 32 bita.
+    * Dostupno za podatke (payload): 256 - 32 = **224 bita po frejmu**.
+    * Potrebno frejmova: 600 bita / 224 bita/frejm = 2.68. Dakle, potrebna su **3 frejma** da se prenese cela poruka.
 
 **Vizuelni Prikaz Frejma na 16x16 Matici:**
-```
-M H H H H H H H H H H H H H H M   (M=Marker, H=Header)
-P P P P P P P P P P P P P P P P   (P=Payload/Podaci)
-... (12 redova podataka) ...
-P P P P P P P P P P P P P P P P
-M C C C C C C C C C C C C C C M   (C=CRC Footer)
-```
 
-                                          ---------------------------------
-                                          |            Legend             |
-                                          ---------------------------------
-                                          |         M – marker            |
-                                          |-------------------------------|
-                                          |  ID – random ID of each frame |
-                                          |-------------------------------|
-                                          |  CF – current frame number    |
-                                          |-------------------------------|
-                                          |  TF – total number of frames  |
-                                          |-------------------------------|
-                                          |          D – data             |
-                                          |-------------------------------|
-                                          |         S - checksum          |
-                                          ---------------------------------
+![Matrica](matrica.png)   
 
-#### **2. Flowchart Implementacije (Poboljšana Verzija)**
+| Symbol | Meaning                      |
+|--------|------------------------------|
+| M      | marker                       |
+| ID     | random ID of each frame      |
+| CF     | current frame number         |
+| TF     | total number of frames       |
+| D      | data                         |
+| S      | checksum (CRC)               |
+
+#### **2. Flowchart Implementacije **
 
 **Predajnik (ESP32):**
 1.  Uzmi poruku od 100 karaktera.
 2.  Pretvori je u niz od 600 bita koristeći 6-bitnu reprezentaciju.
-3.  Generiši nasumični 8-bitni ID sesije.
-4.  Podeli niz od 600 bita na 3 segmenta (2x 220 bita i 1x 160 bita).
+3.  Generiši nasumični 6-bitni ID sesije.
+4.  Podeli niz od 600 bita na 3 segmenta (2x 224 bita i 1x 152 bita).
 5.  **Za svaki od 3 segmenta:**
     * Kreiraj frejm: postavi markere, heder (ID sesije, brojač 0/1/2, ukupan broj 3), i payload.
-    * Izračunaj CRC-16 nad hederom i payload-om.
+    * Izračunaj CRC-14 nad hederom i payload-om.
     * Postavi CRC u futur.
     * Prikaži kompletan frejm na matrici na `~200ms`.
     * Pošalji sledeći frejm.
