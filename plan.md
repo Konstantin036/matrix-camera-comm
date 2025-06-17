@@ -38,6 +38,8 @@ Poboljšavamo protokol tako da podržava slanje podataka u segmentima. Svaki fre
 
 ![Matrica](matrica.png)   
 
+Slika će naknadno biti izmenjena, bazirana je na primeru gde mi sami u okviru matrice definišemo markere za čim nema potrebe jer postoje eksterni markeri oko matrice, samim tim dužina ID-a, CF-a, TF-a i S-a nije relevantna za ova 2 navedena rešenja, ali se slika može koristiti kao privremeni orijentir, dok se ne postavi nova.
+
 | Simbol | Značenje                     |
 |--------|------------------------------|
 | ID     | random ID of za svaki frame  |
