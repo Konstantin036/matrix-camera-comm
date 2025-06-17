@@ -2,7 +2,7 @@ S obzirom na to da matrica ima **16x16 (256)** dioda, a šifra **100 karaktera**
 
 
 ***
-### **Postoje 2 nčina tretiranja i obrade lozinke (binarna ON/OFF reprezentacija i binarna RGB reprezentacija - 2 bita po pixel-u), a samim tim i slike tj. frame-a koji detektuje kamera, koji su redom navedeni u nastavku teksta:**
+### **Postoje 2 načina tretiranja i obrade lozinke (binarna ON/OFF reprezentacija i binarna RGB reprezentacija - 2 bita po pixel-u), a samim tim i slike tj. frame-a koji detektuje kamera, koji su redom navedeni u nastavku teksta:**
 
 ---
 
