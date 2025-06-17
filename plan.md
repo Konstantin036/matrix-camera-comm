@@ -191,7 +191,7 @@ Logika unutar `Script` čvora upravlja stanjem i koristi dvoslojnu validaciju.
 
 ### Detaljan Proces Obrade Slike na OAK-1
 
-Obrada slike je ključni deo ovog projekta i njena pravilna implementacija je presudna za pouzdanost celog sistema. Sva obrada kao što je već navedeno, se dešava na OAK-1 kameri.
+Obrada slike je ključni deo ovog projekta i njena pravilna implementacija je presudna za pouzdanost celog sistema. Sva obrada kao što je već navedeno, se dešava na OAK-1 kameri.Što se tiče biblioteka u ovom zadatku najbolje je koristiti OpenCV (kamera ima mogućnost koriščenja DepthAI u kombinaciji sa navedenom bibliotekom) zbog velikih mogućnosti i zato što je vrlo moćan alat za obradu slike. Ta biblioteka će nam riješiti skoro sve probleme na koje budemo nailazili tokom implementacije. Dokumentacija za OpenCV postoji kao i par tutorijala ali ovu vrstu komunikacije između kamere i led matrice nismo uspjeli naći na netu da je neko detaljno implementirao i da postoji dokumentacija za to. Takođe postoje tutorijali za rad sa LED WS2812B matricom koju ćemo koristiti.
 
 #### Pre-Requisites: Podešavanje Kamere
 
