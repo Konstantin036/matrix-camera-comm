@@ -1,0 +1,1 @@
+Ovaj repozitorijum opisuje finalni dizajn protokola, integrišući sve poznate hardverske specifikacije za postizanje maksimalne brzine i pouzdanosti. Sva obrada se vrši na OAK-1 kameri, čiji Script čvor upravlja stanjem i sklapa finalnu poruku.
