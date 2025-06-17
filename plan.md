@@ -188,3 +188,84 @@ Logika unutar `Script` čvora upravlja stanjem i koristi dvoslojnu validaciju.
 *   ✅ **Efikasnost:** Sva složena obrada (detekcija, dekodiranje boja, dvostruka CRC provera, upravljanje stanjem sesije i sklapanje poruke) vrši se direktno na kameri. Host računar dobija samo finalnu, validiranu poruku, što minimalizuje opterećenje i čini sistem potpuno autonomnim.
 
 ---
+
+### Detaljan Proces Obrade Slike na OAK-1
+
+Obrada slike je ključni deo ovog projekta i njena pravilna implementacija je presudna za pouzdanost celog sistema. Sva obrada kao što je već navedeno, se dešava na OAK-1 kameri.
+
+#### Pre-Requisites: Podešavanje Kamere
+
+Pre početka obrade, neophodno je fiksirati parametre kamere kako bi se sprečile automatske promene koje bi mogle poremetiti detekciju. Ovo se radi prilikom definisanja `ColorCamera` čvora u DepthAI pipeline-u.
+
+*   **Fiksna Ekspozicija (Manual Exposure):** Sprečava da slika postane previše svetla (gde se boje stapaju u belu) ili previše tamna. Potrebno je podesiti jednom tako da se boje na matrici jasno vide bez "curenja" svetlosti (light blooming-a).
+*   **Fiksni Balans Bele (Manual White Balance):** Osigurava da se boje na matrici detektuju ispravno (crvena kao crvena, a ne kao narandžasta). Potrebno je kalibrisati tako da bela boja na matrici izgleda što neutralnije.
+
+---
+
+### Obrada Slike: Korak po Korak
+
+Ceo proces se može podeliti u četiri glavna koraka koji se izvršavaju za svaki primljeni frejm od kamere.
+
+#### Korak 1: Detekcija Eksternih Markera
+
+**Cilj:** Pronaći tačne (x, y) koordinate četiri spoljna markera u slici.
+
+*   **Najbolji način bi bio:** Korišćenje **ArUco markera** (za koje i pretpostavljamo da se nalaze oko matrice, jer ništa detaljnije nije rečeno). Oni su standard u kompjuterskoj viziji jer su izuzetno robusni, imaju jedinstven ID i ugrađenu detekciju greške.
+
+*   **Implementacija:**
+    1.  U OAK-1 `Script` čvoru, pretvorite sliku u sive tonove (`cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)`).
+    2.  Koristite `cv2.aruco.detectMarkers()` da dobijete pozicije i ID-jeve svih markera u slici.
+    3.  Filtrirajte rezultate da biste dobili koordinate tačno ona četiri markera koja vas interesuju.
+
+*   **Izlaz ovog koraka:** Lista od četiri (x, y) koordinate koje predstavljaju uglove regiona od interesa, u doslednom redosledu.
+
+---
+
+#### Korak 2: Korekcija Perspektive (Perspective Warp)
+
+**Cilj:** "Ispraviti" trapezoidno deformisanu sliku matrice u savršen kvadrat.
+
+*   **Najbolji način:** **Perspective Transform (Homography).**
+
+*   **Implementacija:**
+    1.  **Definisati izvorne tačke (Source Points):** Ovo su četiri koordinate dobijene u Koraku 1.
+    2.  **Definisati odredišne tačke (Destination Points):** Ovo su uglovi ciljne, ispravljene slike, npr. savršen kvadrat veličine `256x256` piksela: `(0, 0)`, `(255, 0)`, `(255, 255)`, `(0, 255)`.
+    3.  Izračunajti matricu transformacije: `M = cv2.getPerspectiveTransform(source_points, destination_points)`.
+    4.  Primeniti transformaciju: `warped_image = cv2.warpPerspective(original_image, M, (256, 256))`.
+
+*   **Izlaz ovog koraka:** Mala, savršeno ravna slika (npr. 256x256 piksela) koja sadrži samo 16x16 matricu.
+
+---
+
+#### Korak 3: Semplovanje (Učitavanje) Boja Piksela
+
+**Cilj:** Odrediti boju svakog od 256 LED piksela iz ispravljene slike.
+
+*   **Najbolji način:** **Semplovanje centralnog regiona svake ćelije.** Umesto čitanja jednog piksela, uzima se prosek boje iz malog regiona u centru svake LED projekcije, što ga čini otpornim na šum.
+
+*   **Implementacija:**
+    1.  Podeliti ispravljenu sliku (npr. 256x256) na 16x16 mrežu (svaka ćelija je 16x16 piksela).
+    2.  Koristeći dve `for` petlje (za `i` i `j` od 0 do 15), za svaku ćeliju `(i, j)` analizirati samo manji kvadrat u njenom centru (npr. region od 8x8 piksela).
+    3.  Izračunati **prosečnu (R, G, B) vrednost** svih piksela unutar tog centralnog regiona.
+    4.  Voditi računa o **"Z" paternu** matrice: ako je red paran (`i % 2 != 0`), čitati ćelije sa desna na levo.
+
+*   **Izlaz ovog koraka:** Niz od 256 (R, G, B) vrednosti, po jedna za svaku LED diodu.
+
+---
+
+#### Korak 4: Konverzija Boje u Bitove
+
+**Cilj:** Svaku (R, G, B) vrednost pretvoriti u 2 bita prema protokolu.
+
+*   **Najbolji način:** **Poređenje dominantnog kanala** umesto provere tačnih RGB vrednosti.
+
+*   **Implementacija (za svaku od 256 (R, G, B) vrednosti):**
+    1.  **Provera specijalnih slučajeva:**
+        *   **Bela (`11`):** Ako su R, G i B kanali visoki i približno jednaki (npr. `R > 150`, `G > 150`, `B > 150`).
+        *   **Crna (padding):** Ako je suma `R+G+B` ispod nekog praga (npr. `50`).
+    2.  **Ako nije specijalni slučaj, naći dominantan kanal:**
+        *   Ako je `R > G` i `R > B` → **Crvena (`00`)**.
+        *   Ako je `G > R` i `G > B` → **Zelena (`01`)**.
+        *   Inače → **Plava (`10`)**.
+
+*   **Izlaz ovog koraka:** Finalni niz od **512 bita**, spreman za CRC proveru i sklapanje poruke.
